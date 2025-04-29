@@ -1,0 +1,18 @@
+{
+  "title": "Web3 Foundation Grant Distribution",
+  "description": "# Web3 Infrastructure Development Grant\n\n## Total Grant: 100,000 DAI\n\n## Recipients and Deliverables\n\n### 0xGrantee1 (40% - 40,000 DAI)\n**Core Protocol Development**\n- Layer 2 scaling implementation\n- Cross-chain bridge protocols\n- Performance optimization\n- **Milestones**:\n  1. Architecture design (10,000 DAI)\n  2. Implementation (20,000 DAI)\n  3. Testing & Integration (10,000 DAI)\n\n### 0xGrantee2 (35% - 35,000 DAI)\n**Security & Auditing**\n- Smart contract security audit\n- Penetration testing\n- Vulnerability assessment\n- **Milestones**:\n  1. Initial audit (15,000 DAI)\n  2. Fix verification (10,000 DAI)\n  3. Final security report (10,000 DAI)\n\n### 0xGrantee3 (25% - 25,000 DAI)\n**Documentation & Tools**\n- Technical documentation\n- API specifications\n- Developer tooling\n- **Milestones**:\n  1. Documentation framework (10,000 DAI)\n  2. Tool development (10,000 DAI)\n  3. Community resources (5,000 DAI)\n\n## Release Requirements\n1. Monthly progress reports\n2. Public repository contributions\n3. Community feedback integration\n4. Milestone demonstration calls",
+  "type": "grant",
+  "payments": [
+    {
+      "address": "0xf9eaab27b00b9bbc8fbfa6c58dc2653bef4b461a",
+      "amount": "100000000000000000",
+      "currency": "0x0000000000000000000000000000000000000000",
+      "role": "sender"
+    }
+  ],
+  "bond": "0.01",
+  "timeout": 86400,
+  "cooldown": 43200,
+  "expiration": 604800,
+  "createdAt": 1745837052520
+}
