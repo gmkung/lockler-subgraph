@@ -1,16 +1,16 @@
-type Lockler @entity(immutable: true) {
-  id: ID! # Safe address
+type Lockler @entity(immutable: false) {
+  id: ID!
   safe: Safe!
   realityModules: [RealityModule!]! @derivedFrom(field: "lockler")
-  owners: [Bytes!]! # Safe owners
-  threshold: BigInt! # Safe threshold
+  threshold: BigInt!
+  transactionCount: BigInt!
+  creator: Bytes!
+  owners: [Bytes!]!
   createdAt: BigInt!
   createdAtBlock: BigInt!
-  creator: Bytes! # Address that created the Lockler
-  transactionCount: BigInt! # Number of transactions executed
 }
 
-type Safe @entity(immutable: true) {
+type Safe @entity(immutable: false) {
   id: ID! # Safe address
   owners: [Bytes!]!
   threshold: BigInt!
@@ -42,19 +42,12 @@ type SafeTransaction @entity(immutable: true) {
   success: Boolean
 }
 
-type RealityModule @entity(immutable: true) {
-  id: ID! # Module address
-  lockler: Lockler! # Reference back to the Lockler
-  owner: Bytes! # Safe address
-  avatar: Bytes! # Safe address
+type RealityModule @entity(immutable: false) {
+  id: ID!
+  lockler: Lockler!
+  owner: Bytes!
+  avatar: Bytes!
   target: Bytes!
-  oracle: Bytes!
-  questionTimeout: BigInt!
-  questionCooldown: BigInt!
-  answerExpiration: BigInt!
-  minimumBond: BigInt!
-  template: BigInt!
-  questionArbitrator: Bytes!
   questionText: String
   createdAt: BigInt!
   createdAtBlock: BigInt!

@@ -30,17 +30,23 @@ function getDomainSeparator(safeAddress: Bytes): Bytes {
 export function handleProxyCreation(event: ProxyCreation): void {
   let safe = new Safe(event.params.proxy.toHexString());
   safe.nonce = BigInt.fromI32(0);
+  safe.threshold = BigInt.fromI32(1); // Set default threshold to 1
   safe.domainSeparator = getDomainSeparator(event.params.proxy);
   safe.createdAt = event.block.timestamp;
   safe.createdAtBlock = event.block.number;
+  safe.owners = [event.transaction.from]; // Add creator as first owner
+  safe.modules = [];
+  safe.signedMessages = [];
   safe.save();
 
   let lockler = new Lockler(event.params.proxy.toHexString());
   lockler.safe = safe.id;
+  lockler.threshold = BigInt.fromI32(1); // Set default threshold to 1
   lockler.transactionCount = BigInt.fromI32(0);
   lockler.createdAt = event.block.timestamp;
   lockler.createdAtBlock = event.block.number;
   lockler.creator = event.transaction.from;
+  lockler.owners = [];
   lockler.save();
 }
 
@@ -49,15 +55,19 @@ export function handleAddedOwner(event: AddedOwner): void {
   let safe = Safe.load(event.address.toHexString());
   if (safe) {
     let owners = safe.owners;
-    owners.push(event.params.owner);
-    safe.owners = owners;
+    // Create a new array with the new owner
+    let newOwners = new Array<Bytes>(owners.length + 1);
+    for (let i = 0; i < owners.length; i++) {
+      newOwners[i] = owners[i];
+    }
+    newOwners[owners.length] = event.params.owner;
+    safe.owners = newOwners;
     safe.save();
 
+    // Also update the Lockler entity
     let lockler = Lockler.load(event.address.toHexString());
     if (lockler) {
-      let locklerOwners = lockler.owners;
-      locklerOwners.push(event.params.owner);
-      lockler.owners = locklerOwners;
+      lockler.owners = newOwners;
       lockler.save();
     }
   }
@@ -68,19 +78,23 @@ export function handleRemovedOwner(event: RemovedOwner): void {
   let safe = Safe.load(event.address.toHexString());
   if (safe) {
     let owners = safe.owners;
-    let index = owners.indexOf(event.params.owner);
-    if (index > -1) {
-      owners.splice(index, 1);
-      safe.owners = owners;
-      safe.save();
-
-      let lockler = Lockler.load(event.address.toHexString());
-      if (lockler) {
-        let locklerOwners = lockler.owners;
-        locklerOwners.splice(index, 1);
-        lockler.owners = locklerOwners;
-        lockler.save();
+    // Create a new array without the removed owner
+    let newOwners = new Array<Bytes>(owners.length - 1);
+    let newIndex = 0;
+    for (let i = 0; i < owners.length; i++) {
+      if (owners[i] != event.params.owner) {
+        newOwners[newIndex] = owners[i];
+        newIndex++;
       }
+    }
+    safe.owners = newOwners;
+    safe.save();
+
+    // Also update the Lockler entity
+    let lockler = Lockler.load(event.address.toHexString());
+    if (lockler) {
+      lockler.owners = newOwners;
+      lockler.save();
     }
   }
 }
@@ -92,6 +106,7 @@ export function handleChangedThreshold(event: ChangedThreshold): void {
     safe.threshold = event.params.threshold;
     safe.save();
 
+    // Also update the Lockler entity
     let lockler = Lockler.load(event.address.toHexString());
     if (lockler) {
       lockler.threshold = event.params.threshold;
@@ -108,9 +123,6 @@ export function handleEnabledModule(event: EnabledModule): void {
     modules.push(event.params.module);
     safe.modules = modules;
     safe.save();
-
-    // Check if this is a Reality Module by checking for RealityModuleSetup event
-    // This would need to be implemented based on how we can identify Reality Modules
   }
 }
 
@@ -138,20 +150,20 @@ export function handleExecutionFailure(event: ExecutionFailure): void {
 
 // Handle Reality Module setup
 export function handleRealityModuleSetup(event: RealityModuleSetup): void {
-  let module = new RealityModule(event.address.toHexString());
-  module.owner = event.params.owner;
-  module.avatar = event.params.avatar;
-  module.target = event.params.target;
-  module.createdAt = event.block.timestamp;
-  module.createdAtBlock = event.block.number;
-
-  // Link to Lockler
-  let lockler = Lockler.load(event.params.avatar.toHexString());
-  if (lockler) {
-    module.lockler = lockler.id;
+  let lockler = Lockler.load(event.params.owner.toHexString());
+  if (lockler == null) {
+    lockler = new Lockler(event.params.owner.toHexString());
+    lockler.save();
   }
 
-  module.save();
+  let realityModule = new RealityModule(event.params.avatar.toHexString());
+  realityModule.lockler = lockler.id;
+  realityModule.owner = event.params.owner;
+  realityModule.avatar = event.params.avatar;
+  realityModule.target = event.params.target;
+  realityModule.createdAt = event.block.timestamp;
+  realityModule.createdAtBlock = event.block.number;
+  realityModule.save();
 }
 
 // Handle proposal question creation
