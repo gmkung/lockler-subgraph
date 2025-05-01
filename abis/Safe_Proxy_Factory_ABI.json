@@ -26,7 +26,11 @@
     ],
     "name": "createChainSpecificProxyWithNonce",
     "outputs": [
-      { "internalType": "contract SafeProxy", "name": "proxy", "type": "address" }
+      {
+        "internalType": "contract SafeProxy",
+        "name": "proxy",
+        "type": "address"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -44,7 +48,11 @@
     ],
     "name": "createProxyWithCallback",
     "outputs": [
-      { "internalType": "contract SafeProxy", "name": "proxy", "type": "address" }
+      {
+        "internalType": "contract SafeProxy",
+        "name": "proxy",
+        "type": "address"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -57,7 +65,11 @@
     ],
     "name": "createProxyWithNonce",
     "outputs": [
-      { "internalType": "contract SafeProxy", "name": "proxy", "type": "address" }
+      {
+        "internalType": "contract SafeProxy",
+        "name": "proxy",
+        "type": "address"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -76,4 +88,4 @@
     "stateMutability": "pure",
     "type": "function"
   }
-] 
+]
