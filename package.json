@@ -2,12 +2,19 @@
   "name": "lockler-subgraph",
   "license": "UNLICENSED",
   "scripts": {
-    "codegen": "graph codegen",
-    "build": "graph build",
-    "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ your-username/lockler-subgraph",
-    "create-local": "graph create --node http://localhost:8020/ your-username/lockler-subgraph",
-    "remove-local": "graph remove --node http://localhost:8020/ your-username/lockler-subgraph",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 your-username/lockler-subgraph"
+    "codegen:gnosis": "graph codegen subgraph.gnosis.yaml -o generated/",
+    "codegen:mainnet": "graph codegen subgraph.mainnet.yaml -o generated/",
+
+    "build:gnosis": "graph build subgraph.gnosis.yaml",
+    "build:mainnet": "graph build subgraph.mainnet.yaml",
+
+    "deploy:gnosis": "yarn codegen:gnosis && yarn build:gnosis && graph deploy --node https://api.studio.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ gmkung/lockler-subgraph-gno",
+    "deploy:mainnet": "yarn codegen:mainnet && yarn build:mainnet && graph deploy --node https://api.studio.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ gmkung/lockler-subgraph-eth",
+
+    "create-local:gnosis": "graph create --node http://localhost:8020/ gmkung/lockler-subgraph-gno",
+    "create-local:mainnet": "graph create --node http://localhost:8020/ gmkung/lockler-subgraph-eth",
+    "deploy-local:gnosis": "yarn codegen:gnosis && yarn build:gnosis && graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 gmkung/lockler-subgraph-gno",
+    "deploy-local:mainnet": "yarn codegen:mainnet && yarn build:mainnet && graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 gmkung/lockler-subgraph-eth"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "^0.97.0",

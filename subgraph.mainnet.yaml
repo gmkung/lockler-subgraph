@@ -1,0 +1,97 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: SafeProxyFactory
+    network: gnosis # Hardcoded for Gnosis
+    source:
+      address: "0x4e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67" # Gnosis Factory Address
+      abi: SafeProxyFactory
+      startBlock: 22261533 # Ethereum Start Block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mapping.ts
+      entities:
+        - Lockler
+        - Safe
+        - SafeTransaction
+        - RealityModule
+      abis:
+        - name: SafeProxyFactory
+          file: ./abis/Safe_Proxy_Factory_ABI.json
+        - name: Safe
+          file: ./abis/safe_ABI.json
+        - name: RealityModule
+          file: ./abis/reality_module_abi.json
+      eventHandlers:
+        - event: ProxyCreation(indexed address,address)
+          handler: handleProxyCreation
+
+templates:
+  - name: Safe
+    kind: ethereum/contract
+    network: gnosis # Hardcoded for Gnosis
+    source:
+      abi: Safe
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mapping.ts
+      entities:
+        - Lockler
+        - Safe
+        - SafeTransaction
+        - RealityModule
+      abis:
+        - name: Safe
+          file: ./abis/safe_ABI.json
+        - name: RealityModule
+          file: ./abis/reality_module_abi.json
+      eventHandlers:
+        - event: SafeSetup(indexed address,address[],uint256,address,address)
+          handler: handleSafeSetup
+        - event: AddedOwner(indexed address)
+          handler: handleAddedOwner
+          receipt: true
+        - event: RemovedOwner(indexed address)
+          handler: handleRemovedOwner
+          receipt: true
+        - event: ChangedThreshold(uint256)
+          handler: handleChangedThreshold
+          receipt: true
+        - event: EnabledModule(indexed address)
+          handler: handleEnabledModule
+          receipt: true
+        - event: ExecutionSuccess(indexed bytes32,uint256)
+          handler: handleExecutionSuccess
+          receipt: true
+        - event: ExecutionFailure(indexed bytes32,uint256)
+          handler: handleExecutionFailure
+          receipt: true
+
+  - name: RealityModule
+    kind: ethereum/contract
+    network: gnosis # Hardcoded for Gnosis
+    source:
+      abi: RealityModule
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mapping.ts
+      entities:
+        - RealityModule
+      abis:
+        - name: RealityModule
+          file: ./abis/reality_module_abi.json
+      eventHandlers:
+        - event: RealityModuleSetup(indexed address,indexed address,indexed address,address)
+          handler: handleRealityModuleSetup
+          receipt: true
+        - event: ProposalQuestionCreated(indexed bytes32,indexed string)
+          handler: handleProposalQuestionCreated
+          receipt: true 
