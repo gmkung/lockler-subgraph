@@ -4,11 +4,11 @@ schema:
 dataSources:
   - kind: ethereum
     name: SafeProxyFactory
-    network: gnosis
+    network: gnosis # Hardcoded for Gnosis
     source:
-      address: "0x4e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67"
+      address: "0x4e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67" # Gnosis Factory Address
       abi: SafeProxyFactory
-      startBlock: 39673074
+      startBlock: 39673074 # Gnosis Start Block
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -33,7 +33,7 @@ dataSources:
 templates:
   - name: Safe
     kind: ethereum/contract
-    network: gnosis
+    network: gnosis # Hardcoded for Gnosis
     source:
       abi: Safe
     mapping:
@@ -52,6 +52,8 @@ templates:
         - name: RealityModule
           file: ./abis/reality_module_abi.json
       eventHandlers:
+        - event: SafeSetup(indexed address,address[],uint256,address,address)
+          handler: handleSafeSetup
         - event: AddedOwner(indexed address)
           handler: handleAddedOwner
           receipt: true
@@ -73,7 +75,7 @@ templates:
 
   - name: RealityModule
     kind: ethereum/contract
-    network: gnosis
+    network: gnosis # Hardcoded for Gnosis
     source:
       abi: RealityModule
     mapping:

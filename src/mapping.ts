@@ -6,6 +6,7 @@ import {
   EnabledModule,
   ExecutionSuccess,
   ExecutionFailure,
+  SafeSetup,
   Safe as SafeContract, // Renamed to avoid conflict with Safe entity
 } from "../generated/templates/Safe/Safe";
 import {
@@ -19,7 +20,7 @@ import {
   SafeTransaction,
   RealityModule,
 } from "../generated/schema";
-import { BigInt, Bytes, log } from "@graphprotocol/graph-ts";
+import { BigInt, Bytes, log, Address } from "@graphprotocol/graph-ts";
 import {
   Safe as SafeTemplate,
   RealityModule as RealityModuleTemplate,
@@ -122,16 +123,51 @@ export function handleChangedThreshold(event: ChangedThreshold): void {
 
 // Handle module enablement
 export function handleEnabledModule(event: EnabledModule): void {
-  let safe = Safe.load(event.address.toHexString());
-  if (safe) {
-    let modules = safe.modules;
-    modules.push(event.params.module);
-    safe.modules = modules;
-    safe.save();
+  let safeId = event.address.toHexString();
+  let safe = Safe.load(safeId);
 
-    // Instantiate the RealityModule template for the enabled module
-    RealityModuleTemplate.create(event.params.module);
+  // Ensure Safe and Lockler entities exist (backup creation)
+  if (safe == null) {
+    log.warning("Safe entity {} not found during handleEnabledModule. Creating now.", [safeId]);
+    safe = new Safe(safeId);
+    safe.nonce = BigInt.fromI32(0);
+    safe.threshold = BigInt.fromI32(1); // Default, will be updated by SafeSetup
+    safe.domainSeparator = getDomainSeparator(event.address);
+    safe.createdAt = event.block.timestamp;
+    safe.createdAtBlock = event.block.number;
+    safe.owners = [];
+    safe.modules = [];
+    safe.signedMessages = [];
   }
+
+  let lockler = Lockler.load(safeId);
+  if (lockler == null) {
+    log.warning("Lockler entity {} not found during handleEnabledModule. Creating now.", [safeId]);
+    lockler = new Lockler(safeId);
+    lockler.safe = safe.id;
+    lockler.threshold = BigInt.fromI32(1); // Default, will be updated by SafeSetup
+    lockler.transactionCount = BigInt.fromI32(0);
+    lockler.createdAt = event.block.timestamp;
+    lockler.createdAtBlock = event.block.number;
+    lockler.creator = Bytes.fromHexString("0x0000000000000000000000000000000000000000"); // Placeholder, ProxyCreation is primary source
+    lockler.owners = [];
+    lockler.save(); // Save Lockler first if newly created
+  }
+
+  // Add the module to the Safe's list
+  let modules = safe.modules; // modules will be non-null if safe exists
+  if (modules.indexOf(event.params.module) == -1) { // Avoid duplicates
+      modules.push(event.params.module);
+      safe.modules = modules;
+  }
+  safe.save(); // Save Safe (either existing or newly created/updated)
+
+  // Instantiate the RealityModule template for the enabled module
+  RealityModuleTemplate.create(event.params.module);
+  log.info("Instantiated RealityModule template for module {} enabled on Safe {}", [
+      event.params.module.toHexString(),
+      safeId
+  ]);
 }
 
 // Handle transaction execution
@@ -158,26 +194,52 @@ export function handleExecutionFailure(event: ExecutionFailure): void {
 
 // Handle Reality Module setup
 export function handleRealityModuleSetup(event: RealityModuleSetup): void {
+  let ownerAddress = event.params.owner.toHexString(); // Safe address is the Lockler ID
+  let moduleAddress = event.address.toHexString(); // Module address is the RealityModule ID
+  let initiatorAddress = event.params.initiator; // Creator in this context
+
   log.info(
     "handleRealityModuleSetup triggered for module {} owned by {}", 
-    [event.address.toHexString(), event.params.owner.toHexString()]
+    [moduleAddress, ownerAddress]
   );
-  // Load the Lockler using the owner address (which is the Safe address)
-  let lockler = Lockler.load(event.params.owner.toHexString());
+  
+  // Attempt to load the Lockler
+  let lockler = Lockler.load(ownerAddress);
 
-  // If the Lockler doesn't exist yet, log an error and return.
-  // It should have been created by handleProxyCreation first.
+  // If the Lockler doesn't exist, create it AND the associated Safe entity
   if (lockler == null) {
-    log.error(
-      "Lockler entity not found for owner (Safe) address: {}. RealityModuleSetup event processed before ProxyCreation?",
-      [event.params.owner.toHexString()]
+    log.warning(
+      "Lockler entity {} not found during handleRealityModuleSetup. Creating now. (ProxyCreation likely processed later)",
+      [ownerAddress]
     );
-    return;
+
+    // Create Safe entity first (required by Lockler.safe)
+    let safe = new Safe(ownerAddress);
+    safe.nonce = BigInt.fromI32(0);
+    safe.threshold = BigInt.fromI32(1); // Default, Setup/Events will update later
+    safe.domainSeparator = getDomainSeparator(event.params.owner); // Use owner address
+    safe.createdAt = event.block.timestamp;
+    safe.createdAtBlock = event.block.number;
+    safe.owners = [];
+    safe.modules = [];
+    safe.signedMessages = [];
+    safe.save();
+
+    // Now create the Lockler entity
+    lockler = new Lockler(ownerAddress);
+    lockler.safe = safe.id; // Link to the just created Safe
+    lockler.threshold = safe.threshold; // Match default
+    lockler.transactionCount = BigInt.fromI32(0);
+    lockler.createdAt = event.block.timestamp;
+    lockler.createdAtBlock = event.block.number;
+    lockler.creator = initiatorAddress; // Use initiator from this event
+    lockler.owners = [];
+    lockler.save();
   }
 
-  // Create the RealityModule entity using the module's address as its ID
-  let realityModuleId = event.address.toHexString();
-  let realityModule = new RealityModule(realityModuleId);
+  // Now, Lockler entity is guaranteed to exist (either loaded or created)
+  // Create the RealityModule entity
+  let realityModule = new RealityModule(moduleAddress);
   realityModule.lockler = lockler.id; // Link to the existing Lockler
   realityModule.owner = event.params.owner;
   realityModule.avatar = event.params.avatar;
@@ -185,7 +247,7 @@ export function handleRealityModuleSetup(event: RealityModuleSetup): void {
   realityModule.createdAt = event.block.timestamp;
   realityModule.createdAtBlock = event.block.number;
   
-  log.info("Saving RealityModule {} linked to Lockler {}", [realityModuleId, lockler.id]);
+  log.info("Saving RealityModule {} linked to Lockler {}", [moduleAddress, lockler.id]);
   realityModule.save(); // Save the new RealityModule
 }
 
@@ -198,5 +260,45 @@ export function handleProposalQuestionCreated(
     // Store the question text or other relevant data
     module.questionText = event.params.proposalId.toString();
     module.save();
+  }
+}
+
+// Handle Safe setup event
+export function handleSafeSetup(event: SafeSetup): void {
+  let safeId = event.address.toHexString();
+  log.info("Handling SafeSetup for Safe: {}", [safeId]);
+
+  let safe = Safe.load(safeId);
+  if (safe == null) {
+    log.warning(
+      "Safe entity not found during SafeSetup for address: {}. Was ProxyCreation missed or processed later?", 
+      [safeId]
+    );
+    return; 
+  }
+
+  // Convert owners from Address[] to Bytes[]
+  let ownersFromEvent = event.params.owners; // Array<Address>
+  let ownersAsBytes = ownersFromEvent.map<Bytes>((ownerAddress: Address): Bytes => {
+      return ownerAddress as Bytes; // Cast Address to Bytes
+  });
+
+  // Update Safe entity with initial owners (as Bytes) and threshold
+  safe.owners = ownersAsBytes;
+  safe.threshold = event.params.threshold;
+  safe.save();
+
+  // Also update the corresponding Lockler entity
+  let lockler = Lockler.load(safeId);
+  if (lockler != null) {
+    lockler.owners = ownersAsBytes; // Use the converted Bytes array
+    lockler.threshold = event.params.threshold;
+    lockler.save();
+    log.info("Updated Lockler {} owners and threshold from SafeSetup", [safeId]);
+  } else {
+    log.warning(
+      "Lockler entity not found during SafeSetup for Safe address: {}. This shouldn't happen if ProxyCreation worked.",
+      [safeId]
+    );
   }
 }
